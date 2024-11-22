@@ -1,0 +1,32 @@
+name: dotnet CI build
+
+on: push
+
+jobs:
+  donet-ci-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup .NET Core @ Latest
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+          source-url: https://nuget.pkg.github.com/BluEye-Robotics/index.json
+        env:
+          NUGET_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+      - name: Sanitize branch name
+        id: branches
+        uses: transferwise/sanitize-branch-name@v1
+
+      - name: Build project and generate NuGet package
+        run: |
+          dotnet pack CompactExifLib/CompactExifLib.csproj --version-suffix "${{ steps.branches.outputs.sanitized-branch-name }}.$GITHUB_RUN_NUMBER" -c Release -o out
+
+      - name: Push generated package to GitHub registry
+        env:
+          NUGET_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: dotnet nuget push ./out/*.nupkg --skip-duplicate --no-symbols --api-key $NUGET_AUTH_TOKEN
